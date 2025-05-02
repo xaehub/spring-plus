@@ -1,5 +1,6 @@
 package org.example.expert.domain.todo.service;
 
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.example.expert.client.WeatherClient;
 import org.example.expert.domain.common.dto.AuthUser;
@@ -45,24 +46,26 @@ public class TodoService {
                 savedTodo.getTitle(),
                 savedTodo.getContents(),
                 weather,
-                new UserResponse(user.getId(), user.getEmail())
+                new UserResponse(user.getId(), user.getEmail(), user.getNickname())
         );
     }
 
-    public Page<TodoResponse> getTodos(int page, int size) {
+    public Page<TodoResponse> getTodos(int page, int size, String weather, LocalDateTime start, LocalDateTime end) {
         Pageable pageable = PageRequest.of(page - 1, size);
 
-        Page<Todo> todos = todoRepository.findAllByOrderByModifiedAtDesc(pageable);
-
-        return todos.map(todo -> new TodoResponse(
-                todo.getId(),
-                todo.getTitle(),
-                todo.getContents(),
-                todo.getWeather(),
-                new UserResponse(todo.getUser().getId(), todo.getUser().getEmail()),
-                todo.getCreatedAt(),
-                todo.getModifiedAt()
-        ));
+        if (weather != null && start != null && end != null) {
+            return todoRepository.findByWeatherStartEnd(weather, start, end, pageable)
+                .map(TodoResponse::of);
+        } else if (weather != null) {
+            return todoRepository.findByWeather(weather, pageable)
+                .map(TodoResponse::of);
+        } else if (start != null && end != null) {
+            return todoRepository.findByStartEnd(start, end, pageable)
+                .map(TodoResponse::of);
+        } else {
+            return todoRepository.findAllByOrderByModifiedAtDesc(pageable)
+                .map(TodoResponse::of);
+        }
     }
 
     public TodoResponse getTodo(long todoId) {
@@ -76,7 +79,7 @@ public class TodoService {
                 todo.getTitle(),
                 todo.getContents(),
                 todo.getWeather(),
-                new UserResponse(user.getId(), user.getEmail()),
+                new UserResponse(user.getId(), user.getEmail(), user.getNickname()),
                 todo.getCreatedAt(),
                 todo.getModifiedAt()
         );
