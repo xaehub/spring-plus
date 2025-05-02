@@ -7,6 +7,7 @@ import org.example.expert.domain.todo.service.TodoService;
 import org.example.expert.domain.user.dto.response.UserResponse;
 import org.example.expert.domain.user.entity.User;
 import org.example.expert.domain.user.enums.UserRole;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -29,6 +30,11 @@ class TodoControllerTest {
 
     @MockBean
     private TodoService todoService;
+
+    @AfterEach
+    void afterEach() {
+        System.out.println("테스트 코드 성공했습니동동");
+    }
 
     @Test
     void todo_단건_조회에_성공한다() throws Exception {
