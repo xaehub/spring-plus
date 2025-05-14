@@ -5,6 +5,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.example.expert.domain.common.exception.ServerException;
 import org.example.expert.domain.user.enums.UserRole;
@@ -20,6 +21,7 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
+    private static final String AUTH_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
     private static final long TOKEN_TIME = 60 * 60 * 1000L; // 60분
 
@@ -70,4 +72,43 @@ public class JwtUtil {
         return claimsInfo.get("nickname", String.class);
 
     }
+
+    public String resolveToken(HttpServletRequest request) {
+        String bearerToken = request.getHeader(AUTH_HEADER);
+        if (bearerToken != null && bearerToken.startsWith(BEARER_PREFIX)) {
+            return bearerToken.substring(BEARER_PREFIX.length());
+        }
+        return null;
+    }
+
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token); // 토큰 파싱 시 예외가 없으면 유효함
+            return true;
+        } catch (Exception e) {
+            log.warn("JWT 유효성 검사 실패: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    public Long getUserId(String token) {
+        Claims claims = extractClaims(token);
+        return Long.parseLong(claims.getSubject());
+    }
+
+    // getEmail 메서드 추가
+    public String getEmail(String token) {
+        Claims claimsInfo = extractClaims(token);
+        return claimsInfo.get("email", String.class);
+    }
+
+    // getUserRole 메서드 추가
+    public UserRole getUserRole(String token) {
+        Claims claimsInfo = extractClaims(token);
+        return UserRole.valueOf(claimsInfo.get("userRole", String.class));
+    }
+
 }

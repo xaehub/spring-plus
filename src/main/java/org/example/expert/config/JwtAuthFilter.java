@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.expert.domain.common.dto.AuthUser;
 import org.example.expert.domain.user.enums.UserRole;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,42 +23,26 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
 
     @Override
-    protected void doFilterInternal(
-        HttpServletRequest request,
+    protected void doFilterInternal(HttpServletRequest request,
         HttpServletResponse response,
         FilterChain filterChain
     ) throws ServletException, IOException {
+        String token = jwtUtil.resolveToken(request);
 
-        String tokenValue = request.getHeader("Authorization");
-        if (StringUtils.hasText(tokenValue) && tokenValue.startsWith("Bearer ")) {
-            String token = jwtUtil.substringToken(tokenValue);
+        if (token != null && jwtUtil.validateToken(token)) {
+            Long userId = jwtUtil.getUserId(token);
+            String email = jwtUtil.getEmail(token);
+            String nickname = jwtUtil.getNickname(token);
+            UserRole role = jwtUtil.getUserRole(token);
 
-            try {
-                // 유효성 검사 및 정보 추출
-                Long userId = Long.parseLong(jwtUtil.extractClaims(token).getSubject());
-                String email = jwtUtil.extractClaims(token).get("email", String.class);
-                String roleStr = jwtUtil.extractClaims(token).get("userRole", String.class);
-                String nickname = jwtUtil.extractClaims(token).get("nickname", String.class);
-                UserRole userRole = UserRole.of(roleStr);
-
-                // request에 정보 세팅
-                request.setAttribute("userId", userId);
-                request.setAttribute("email", email);
-                request.setAttribute("nickname", nickname);
-                request.setAttribute("userRole", roleStr);
-
-                // Spring Security용 인증 정보 설정
-                UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(userId, null, userRole.getAuthorities());
-
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-
-            } catch (Exception e) {
-                log.error("JWT 처리 중 오류 발생: {}", e.getMessage());
-            }
+            AuthUser authUser = new AuthUser(userId, email, role, nickname);
+            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                authUser, null, authUser.getAuthorities()
+            );
+            SecurityContextHolder.getContext().setAuthentication(authentication);
         }
 
         filterChain.doFilter(request, response);
     }
+
 }
